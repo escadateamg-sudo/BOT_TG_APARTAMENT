@@ -1,0 +1,317 @@
+2025-08-18 18:12:44,505 - __main__ - INFO - ✅ Бот успішно ініціалізовано
+2025-08-18 18:12:44,509 - __main__ - INFO - 🚀 Запуск бота...
+2025-08-18 18:12:44,673 - database - INFO - ✅ База даних з пулом з'єднань ініціалізована
+2025-08-18 18:12:44,674 - __main__ - INFO - ✅ База даних ініціалізована
+2025-08-18 18:12:44,691 - database - INFO - ✅ Дані міст ініціалізовано
+2025-08-18 18:12:45,053 - __main__ - INFO - ✅ Бот підключено: @EscadaRent_bot
+2025-08-18 18:12:45,553 - __main__ - INFO - ✅ Старі оновлення пропущено
+2025-08-18 18:12:45,553 - __main__ - INFO - 🔄 Запуск polling...
+2025-08-18 18:12:45,553 - aiogram.dispatcher - INFO - Start polling
+2025-08-18 18:12:45,659 - aiogram.dispatcher - INFO - Run polling for bot @EscadaRent_bot id=7947031753 - 'ESCADA Manager'
+2025-08-18 18:12:57,967 - aiogram.event - INFO - Update id=903135781 is handled. Duration 384 ms by bot id=7947031753
+2025-08-18 18:13:05,905 - aiogram.event - INFO - Update id=903135782 is handled. Duration 135 ms by bot id=7947031753
+2025-08-18 18:13:09,946 - aiogram.event - INFO - Update id=903135783 is handled. Duration 455 ms by bot id=7947031753
+2025-08-18 18:13:14,036 - aiogram.event - INFO - Update id=903135784 is handled. Duration 112 ms by bot id=7947031753
+2025-08-18 18:13:18,025 - aiogram.event - INFO - Update id=903135785 is handled. Duration 111 ms by bot id=7947031753
+2025-08-18 18:13:19,604 - aiogram.event - INFO - Update id=903135786 is handled. Duration 109 ms by bot id=7947031753
+2025-08-18 18:13:24,111 - aiogram.event - INFO - Update id=903135787 is handled. Duration 115 ms by bot id=7947031753
+2025-08-18 18:13:25,319 - aiogram.event - INFO - Update id=903135788 is handled. Duration 133 ms by bot id=7947031753
+2025-08-18 18:13:39,783 - aiogram.event - INFO - Update id=903135789 is handled. Duration 137 ms by bot id=7947031753
+2025-08-18 18:13:42,500 - aiogram.event - INFO - Update id=903135790 is handled. Duration 115 ms by bot id=7947031753
+2025-08-18 18:13:58,655 - aiogram.event - INFO - Update id=903135791 is handled. Duration 111 ms by bot id=7947031753
+2025-08-18 18:14:10,263 - aiogram.event - INFO - Update id=903135792 is handled. Duration 252 ms by bot id=7947031753
+2025-08-18 18:14:15,997 - aiogram.event - INFO - Update id=903135793 is handled. Duration 122 ms by bot id=7947031753
+2025-08-18 18:14:17,374 - aiogram.event - INFO - Update id=903135794 is handled. Duration 238 ms by bot id=7947031753
+2025-08-18 18:14:18,813 - aiogram.event - INFO - Update id=903135795 is not handled. Duration 0 ms by bot id=7947031753
+2025-08-18 18:14:18,813 - aiogram.event - ERROR - Cause exception while process update id=903135795 by bot id=7947031753
+RuntimeError: cannot reuse already awaited coroutine
+Traceback (most recent call last):
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/dispatcher.py", line 309, in _process_update
+    response = await self.feed_update(bot, update, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/dispatcher.py", line 158, in feed_update
+    response = await self.update.wrap_outer_middleware(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/middlewares/error.py", line 25, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/middlewares/user_context.py", line 56, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/fsm/middleware.py", line 42, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/event/telegram.py", line 121, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/event/handler.py", line 43, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/dispatcher.py", line 276, in _listen_update
+    return await self.propagate_event(update_type=update_type, event=event, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 146, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 141, in _wrapped
+    return await self._propagate_event(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 174, in _propagate_event
+    response = await router.propagate_event(update_type=update_type, event=event, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 146, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 141, in _wrapped
+    return await self._propagate_event(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 166, in _propagate_event
+    response = await observer.trigger(event, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/event/telegram.py", line 121, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/event/handler.py", line 43, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/main.py", line 416, in handle_select_city
+    keyboard = await create_cities_keyboard()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/main.py", line 315, in create_cities_keyboard
+    cities = await get_available_cities()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/main.py", line 297, in get_available_cities
+    return await get_available_cities_cached()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: cannot reuse already awaited coroutine
+2025-08-18 18:21:34,457 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+2025-08-18 18:21:34,457 - aiogram.dispatcher - INFO - Polling stopped for bot @EscadaRent_bot id=7947031753 - 'ESCADA Manager'
+2025-08-18 18:21:34,457 - aiogram.dispatcher - INFO - Polling stopped
+2025-08-18 18:21:34,760 - __main__ - INFO - 🛑 Бот зупинено
+2025-08-18 18:21:38,659 - __main__ - INFO - ✅ Бот успішно ініціалізовано
+2025-08-18 18:21:38,664 - __main__ - INFO - 🚀 Запуск бота...
+2025-08-18 18:21:38,678 - database - INFO - ✅ База даних з пулом з'єднань ініціалізована
+2025-08-18 18:21:38,678 - __main__ - INFO - ✅ База даних ініціалізована
+2025-08-18 18:21:38,700 - database - INFO - ✅ Дані міст ініціалізовано
+2025-08-18 18:21:39,045 - __main__ - INFO - ✅ Бот підключено: @EscadaRent_bot
+2025-08-18 18:21:39,493 - __main__ - INFO - ✅ Старі оновлення пропущено
+2025-08-18 18:21:39,493 - __main__ - INFO - 🔄 Запуск polling...
+2025-08-18 18:21:39,493 - aiogram.dispatcher - INFO - Start polling
+2025-08-18 18:21:39,607 - aiogram.dispatcher - INFO - Run polling for bot @EscadaRent_bot id=7947031753 - 'ESCADA Manager'
+2025-08-18 18:21:45,586 - aiogram.event - INFO - Update id=903135796 is handled. Duration 342 ms by bot id=7947031753
+2025-08-18 18:21:49,664 - aiogram.event - INFO - Update id=903135797 is handled. Duration 495 ms by bot id=7947031753
+2025-08-18 18:22:40,765 - aiogram.event - INFO - Update id=903135798 is handled. Duration 139 ms by bot id=7947031753
+2025-08-18 18:22:43,448 - aiogram.event - INFO - Update id=903135799 is handled. Duration 591 ms by bot id=7947031753
+2025-08-18 18:22:48,603 - aiogram.event - INFO - Update id=903135800 is handled. Duration 116 ms by bot id=7947031753
+2025-08-18 18:22:50,162 - aiogram.event - INFO - Update id=903135801 is handled. Duration 128 ms by bot id=7947031753
+2025-08-18 18:23:08,491 - aiogram.event - INFO - Update id=903135802 is handled. Duration 163 ms by bot id=7947031753
+2025-08-18 18:24:07,415 - aiogram.event - INFO - Update id=903135803 is handled. Duration 152 ms by bot id=7947031753
+2025-08-18 18:24:14,140 - aiogram.event - INFO - Update id=903135804 is handled. Duration 165 ms by bot id=7947031753
+2025-08-18 18:24:17,213 - aiogram.event - INFO - Update id=903135805 is not handled. Duration 101 ms by bot id=7947031753
+2025-08-18 18:24:17,213 - aiogram.event - ERROR - Cause exception while process update id=903135805 by bot id=7947031753
+TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 104] Connection reset by peer
+Traceback (most recent call last):
+  File "/nix/store/vnvdzw4182wb2ifzi0cczhv80yfnpx1q-python3-3.12.11/lib/python3.12/asyncio/selector_events.py", line 988, in _read_ready__get_buffer
+    nbytes = self._sock.recv_into(buf)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+ConnectionResetError: [Errno 104] Connection reset by peer
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/client/session/aiohttp.py", line 177, in make_request
+    async with session.post(
+               ^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiohttp/client.py", line 1488, in __aenter__
+    self._resp: _RetType = await self._coro
+                           ^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiohttp/client.py", line 770, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiohttp/client.py", line 748, in _connect_and_send_request
+    await resp.start(conn)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiohttp/client_reqrep.py", line 532, in start
+    message, payload = await protocol.read()  # type: ignore[union-attr]
+                       ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiohttp/streams.py", line 672, in read
+    await self._waiter
+aiohttp.client_exceptions.ClientOSError: [Errno 104] Connection reset by peer
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/dispatcher.py", line 309, in _process_update
+    response = await self.feed_update(bot, update, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/dispatcher.py", line 158, in feed_update
+    response = await self.update.wrap_outer_middleware(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/middlewares/error.py", line 25, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/middlewares/user_context.py", line 56, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/fsm/middleware.py", line 42, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/event/telegram.py", line 121, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/event/handler.py", line 43, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/dispatcher.py", line 276, in _listen_update
+    return await self.propagate_event(update_type=update_type, event=event, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 146, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 141, in _wrapped
+    return await self._propagate_event(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 174, in _propagate_event
+    response = await router.propagate_event(update_type=update_type, event=event, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 146, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 141, in _wrapped
+    return await self._propagate_event(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/router.py", line 166, in _propagate_event
+    response = await observer.trigger(event, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/event/telegram.py", line 121, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/dispatcher/event/handler.py", line 43, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/main.py", line 652, in back_to_menu
+    await callback.message.edit_text(text)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/methods/base.py", line 84, in emit
+    return await bot(self)
+           ^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/client/bot.py", line 485, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/client/session/base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/aiogram/client/session/aiohttp.py", line 184, in make_request
+    raise TelegramNetworkError(method=method, message=f"{type(e).__name__}: {e}")
+aiogram.exceptions.TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 104] Connection reset by peer
+2025-08-18 18:24:35,950 - aiogram.event - INFO - Update id=903135806 is handled. Duration 320 ms by bot id=7947031753
+2025-08-18 18:24:46,649 - aiogram.dispatcher - WARNING - Received SIGINT signal
+2025-08-18 18:24:46,650 - aiogram.dispatcher - INFO - Polling stopped for bot @EscadaRent_bot id=7947031753 - 'ESCADA Manager'
+2025-08-18 18:24:46,650 - aiogram.dispatcher - INFO - Polling stopped
+2025-08-18 18:24:46,930 - __main__ - INFO - 🛑 Бот зупинено
+2025-08-18 18:26:20,517 - __main__ - INFO - ✅ Бот успішно ініціалізовано
+2025-08-18 18:26:20,522 - __main__ - INFO - 🚀 Запуск бота...
+2025-08-18 18:26:20,545 - database - INFO - ✅ База даних з пулом з'єднань ініціалізована
+2025-08-18 18:26:20,545 - __main__ - INFO - ✅ База даних ініціалізована
+2025-08-18 18:26:20,594 - database - INFO - ✅ Дані міст ініціалізовано
+2025-08-18 18:26:20,939 - __main__ - INFO - ✅ Бот підключено: @EscadaRent_bot
+2025-08-18 18:26:21,396 - __main__ - INFO - ✅ Старі оновлення пропущено
+2025-08-18 18:26:21,397 - __main__ - INFO - 🔄 Запуск polling...
+2025-08-18 18:26:21,397 - aiogram.dispatcher - INFO - Start polling
+2025-08-18 18:26:21,505 - aiogram.dispatcher - INFO - Run polling for bot @EscadaRent_bot id=7947031753 - 'ESCADA Manager'
+2025-08-18 18:26:24,969 - aiogram.event - INFO - Update id=903135808 is handled. Duration 362 ms by bot id=7947031753
+2025-08-18 18:26:28,740 - aiogram.event - INFO - Update id=903135809 is handled. Duration 111 ms by bot id=7947031753
+2025-08-18 18:26:32,286 - aiogram.event - INFO - Update id=903135810 is handled. Duration 135 ms by bot id=7947031753
+2025-08-18 18:26:33,538 - aiogram.event - INFO - Update id=903135811 is handled. Duration 360 ms by bot id=7947031753
+2025-08-18 18:28:55,686 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+2025-08-18 18:28:55,687 - aiogram.dispatcher - INFO - Polling stopped for bot @EscadaRent_bot id=7947031753 - 'ESCADA Manager'
+2025-08-18 18:28:55,687 - aiogram.dispatcher - INFO - Polling stopped
+2025-08-18 18:28:55,948 - __main__ - INFO - 🛑 Бот зупинено
+2025-08-18 18:29:00,046 - __main__ - INFO - ✅ Бот успішно ініціалізовано
+2025-08-18 18:29:00,049 - __main__ - INFO - 🚀 Запуск бота...
+2025-08-18 18:29:00,059 - database - INFO - ✅ База даних з пулом з'єднань ініціалізована
+2025-08-18 18:29:00,060 - __main__ - INFO - ✅ База даних ініціалізована
+2025-08-18 18:29:00,082 - database - INFO - ✅ Дані міст ініціалізовано
+2025-08-18 18:29:00,399 - __main__ - INFO - ✅ Бот підключено: @EscadaRent_bot
+2025-08-18 18:29:00,760 - __main__ - INFO - ✅ Старі оновлення пропущено
+2025-08-18 18:29:00,761 - __main__ - INFO - 🔄 Запуск polling...
+2025-08-18 18:29:00,761 - aiogram.dispatcher - INFO - Start polling
+2025-08-18 18:29:00,871 - aiogram.dispatcher - INFO - Run polling for bot @EscadaRent_bot id=7947031753 - 'ESCADA Manager'
+2025-08-18 18:29:27,117 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+2025-08-18 18:29:27,118 - aiogram.dispatcher - INFO - Polling stopped for bot @EscadaRent_bot id=7947031753 - 'ESCADA Manager'
+2025-08-18 18:29:27,118 - aiogram.dispatcher - INFO - Polling stopped
+2025-08-18 18:29:27,399 - __main__ - INFO - 🛑 Бот зупинено
+2025-08-18 18:29:31,390 - __main__ - INFO - ✅ Бот успішно ініціалізовано
+2025-08-18 18:29:31,395 - __main__ - INFO - 🚀 Запуск бота...
+2025-08-18 18:29:31,414 - database - INFO - ✅ База даних з пулом з'єднань ініціалізована
+2025-08-18 18:29:31,415 - __main__ - INFO - ✅ База даних ініціалізована
+2025-08-18 18:29:31,447 - database - INFO - ✅ Дані міст ініціалізовано
+2025-08-18 18:29:31,765 - __main__ - INFO - ✅ Бот підключено: @EscadaRent_bot
+2025-08-18 18:29:32,210 - __main__ - INFO - ✅ Старі оновлення пропущено
+2025-08-18 18:29:32,210 - __main__ - INFO - 🔄 Запуск polling...
+2025-08-18 18:29:32,210 - aiogram.dispatcher - INFO - Start polling
+2025-08-18 18:29:32,317 - aiogram.dispatcher - INFO - Run polling for bot @EscadaRent_bot id=7947031753 - 'ESCADA Manager'
+2025-08-18 18:29:52,563 - aiogram.event - INFO - Update id=903135812 is handled. Duration 406 ms by bot id=7947031753
+2025-08-18 18:29:54,750 - __main__ - INFO - Підписка користувача 6963491766: False
+2025-08-18 18:29:55,109 - aiogram.event - INFO - Update id=903135813 is handled. Duration 473 ms by bot id=7947031753
+2025-08-18 18:29:59,340 - __main__ - INFO - Підписка користувача 6963491766: True
+2025-08-18 18:29:59,600 - aiogram.event - INFO - Update id=903135814 is handled. Duration 479 ms by bot id=7947031753
+2025-08-18 18:30:17,070 - aiogram.event - INFO - Update id=903135815 is handled. Duration 241 ms by bot id=7947031753
+2025-08-18 18:30:20,018 - aiogram.event - INFO - Update id=903135816 is handled. Duration 140 ms by bot id=7947031753
+2025-08-18 18:30:22,329 - aiogram.event - INFO - Update id=903135817 is handled. Duration 242 ms by bot id=7947031753
+2025-08-18 18:42:31,164 - __main__ - INFO - ✅ Бот успішно ініціалізовано
+2025-08-18 18:42:31,168 - __main__ - INFO - 🚀 Запуск бота...
+2025-08-18 18:42:31,185 - database - INFO - ✅ База даних з пулом з'єднань ініціалізована
+2025-08-18 18:42:31,186 - __main__ - INFO - ✅ База даних ініціалізована
+2025-08-18 18:42:31,269 - database - INFO - ✅ Дані міст ініціалізовано
+2025-08-18 18:42:31,590 - __main__ - INFO - ✅ Бот підключено: @EscadaRent_bot
+2025-08-18 18:42:32,236 - __main__ - INFO - ✅ Старі оновлення пропущено
+2025-08-18 18:42:32,236 - __main__ - INFO - 🔄 Запуск polling...
+2025-08-18 18:42:32,237 - aiogram.dispatcher - INFO - Start polling
+2025-08-18 18:42:32,343 - aiogram.dispatcher - INFO - Run polling for bot @EscadaRent_bot id=7947031753 - 'ESCADA Manager'
+2025-08-18 18:43:49,267 - aiogram.event - INFO - Update id=903135818 is handled. Duration 339 ms by bot id=7947031753
+2025-08-18 18:43:51,934 - __main__ - INFO - Підписка користувача 7160825812: True
+2025-08-18 18:43:52,237 - aiogram.event - INFO - Update id=903135819 is handled. Duration 432 ms by bot id=7947031753
+2025-08-18 18:43:55,908 - aiogram.event - INFO - Update id=903135820 is handled. Duration 217 ms by bot id=7947031753
+2025-08-18 18:46:55,978 - aiogram.event - INFO - Update id=903135821 is handled. Duration 155 ms by bot id=7947031753
+2025-08-18 18:47:05,754 - aiogram.event - INFO - Update id=903135822 is handled. Duration 167 ms by bot id=7947031753
+2025-08-18 18:47:22,661 - aiogram.event - INFO - Update id=903135823 is handled. Duration 204 ms by bot id=7947031753
+2025-08-18 18:47:27,596 - aiogram.event - INFO - Update id=903135824 is handled. Duration 150 ms by bot id=7947031753
+2025-08-18 18:51:21,369 - aiogram.event - INFO - Update id=903135825 is handled. Duration 161 ms by bot id=7947031753
+2025-08-18 18:51:25,695 - __main__ - INFO - Підписка користувача 1387190246: False
+2025-08-18 18:51:26,550 - aiogram.event - INFO - Update id=903135826 is handled. Duration 970 ms by bot id=7947031753
+2025-08-18 18:51:33,771 - __main__ - INFO - Підписка користувача 1387190246: True
+2025-08-18 18:51:34,039 - aiogram.event - INFO - Update id=903135827 is handled. Duration 485 ms by bot id=7947031753
+2025-08-18 18:52:01,741 - aiogram.event - INFO - Update id=903135828 is handled. Duration 129 ms by bot id=7947031753
+2025-08-18 18:52:03,307 - aiogram.event - INFO - Update id=903135829 is handled. Duration 235 ms by bot id=7947031753
+2025-08-18 18:52:13,734 - aiogram.event - INFO - Update id=903135830 is handled. Duration 452 ms by bot id=7947031753
+2025-08-18 18:52:31,743 - aiogram.event - INFO - Update id=903135831 is handled. Duration 173 ms by bot id=7947031753
+2025-08-18 18:52:33,777 - aiogram.event - INFO - Update id=903135832 is handled. Duration 158 ms by bot id=7947031753
+2025-08-18 18:52:38,956 - aiogram.event - INFO - Update id=903135833 is handled. Duration 143 ms by bot id=7947031753
+2025-08-18 18:52:47,101 - aiogram.event - INFO - Update id=903135834 is handled. Duration 144 ms by bot id=7947031753
+2025-08-18 18:52:56,776 - aiogram.event - INFO - Update id=903135835 is handled. Duration 180 ms by bot id=7947031753
+2025-08-18 18:53:00,349 - aiogram.event - INFO - Update id=903135836 is handled. Duration 126 ms by bot id=7947031753
+2025-08-18 18:53:04,900 - aiogram.event - INFO - Update id=903135837 is handled. Duration 141 ms by bot id=7947031753
+2025-08-18 18:53:10,023 - aiogram.event - INFO - Update id=903135838 is handled. Duration 131 ms by bot id=7947031753
+2025-08-18 18:53:20,672 - aiogram.event - INFO - Update id=903135839 is handled. Duration 156 ms by bot id=7947031753
+2025-08-18 18:53:21,285 - aiogram.event - INFO - Update id=903135840 is handled. Duration 118 ms by bot id=7947031753
+2025-08-18 18:53:23,129 - aiogram.event - INFO - Update id=903135841 is handled. Duration 176 ms by bot id=7947031753
+2025-08-18 18:53:29,719 - aiogram.event - INFO - Update id=903135842 is handled. Duration 137 ms by bot id=7947031753
+2025-08-18 18:53:37,846 - aiogram.event - INFO - Update id=903135843 is handled. Duration 146 ms by bot id=7947031753
+2025-08-18 18:53:40,914 - aiogram.event - INFO - Update id=903135844 is handled. Duration 237 ms by bot id=7947031753
+2025-08-18 18:55:03,448 - __main__ - INFO - ✅ Бот успішно ініціалізовано
+2025-08-18 18:55:03,455 - __main__ - INFO - 🚀 Запуск бота...
+2025-08-18 18:55:03,477 - database - INFO - ✅ База даних з пулом з'єднань ініціалізована
+2025-08-18 18:55:03,478 - __main__ - INFO - ✅ База даних ініціалізована
+2025-08-18 18:55:03,504 - database - INFO - ✅ Дані міст ініціалізовано
+2025-08-18 18:55:03,837 - __main__ - INFO - ✅ Бот підключено: @EscadaRent_bot
+2025-08-18 18:55:04,355 - __main__ - INFO - ✅ Старі оновлення пропущено
+2025-08-18 18:55:04,355 - __main__ - INFO - 🔄 Запуск polling...
+2025-08-18 18:55:04,356 - aiogram.dispatcher - INFO - Start polling
+2025-08-18 18:55:04,461 - aiogram.dispatcher - INFO - Run polling for bot @EscadaRent_bot id=7947031753 - 'ESCADA Manager'
+2025-08-18 18:55:06,778 - aiogram.event - INFO - Update id=903135850 is handled. Duration 466 ms by bot id=7947031753
+2025-08-18 18:55:08,746 - aiogram.event - INFO - Update id=903135851 is handled. Duration 242 ms by bot id=7947031753
+2025-08-18 18:55:18,941 - aiogram.event - INFO - Update id=903135852 is handled. Duration 902 ms by bot id=7947031753
+2025-08-18 19:01:13,405 - aiogram.event - INFO - Update id=903135853 is handled. Duration 292 ms by bot id=7947031753
+2025-08-18 19:01:24,476 - aiogram.event - INFO - Update id=903135854 is handled. Duration 125 ms by bot id=7947031753
+2025-08-18 19:01:51,795 - aiogram.event - INFO - Update id=903135855 is handled. Duration 136 ms by bot id=7947031753
+2025-08-18 19:01:53,626 - aiogram.event - INFO - Update id=903135856 is handled. Duration 324 ms by bot id=7947031753
+2025-08-18 19:02:01,978 - aiogram.event - INFO - Update id=903135857 is handled. Duration 791 ms by bot id=7947031753
