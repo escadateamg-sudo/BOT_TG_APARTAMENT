@@ -2,9 +2,12 @@ import asyncio
 import logging
 import os
 import time
+import threading
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Set
 from contextlib import asynccontextmanager
+from collections import defaultdict
+from functools import lru_cache
 
 from aiogram import Bot, Dispatcher, Router, F
 from aiogram.filters import Command, StateFilter, CommandStart
@@ -29,6 +32,13 @@ try:
     load_dotenv()
 except ImportError:
     print("⚠️ python-dotenv не встановлено")
+
+# Перевірка DATABASE_URL для Render
+DATABASE_URL = os.getenv('DATABASE_URL')
+if DATABASE_URL:
+    print("✅ DATABASE_URL знайдено - використовуємо PostgreSQL")
+else:
+    print("⚠️ DATABASE_URL не встановлено - перевірте налаштування Render")
 
 # ===== КОНФІГУРАЦІЯ =====
 BOT_TOKEN = os.getenv('BOT_TOKEN')
@@ -69,11 +79,19 @@ if not validate_bot_token(BOT_TOKEN):
     print("🤖 Отримайте новий токен від @BotFather")
     exit(1)
 
+# --- ВИПРАВЛЕННЯ КРИТИЧНОЇ УРАЗЛИВОСТІ ADMIN_ID ---
 try:
     ADMIN_ID = int(os.getenv('ADMIN_ID', '0'))
 except ValueError:
     ADMIN_ID = 0
-    print("⚠️ ADMIN_ID не встановлено або має неправильний формат")
+
+if ADMIN_ID == 0:
+    print("❌ КРИТИЧНА ПОМИЛКА: ADMIN_ID не встановлено!")
+    print("💡 Додайте в файл .env:")
+    print("ADMIN_ID=your_telegram_user_id")
+    print("🔒 Без ADMIN_ID бот небезпечний!")
+    exit(1)
+# --- КІНЕЦЬ ВИПРАВЛЕННЯ ---
 
 ESCADA_CHANNEL = '@Escada_Ukraine'  # Назва головного каналу
 ESCADA_CHANNEL_LINK = 'https://t.me/+qhZZnTVBluMyOWNi'  # Посилання на головний канал
@@ -122,52 +140,102 @@ dp.include_router(router)
 # База даних
 db = Database()
 
-# Антиспам система
-user_message_counts: Dict[int, List[float]] = {}
+# --- ПОТОКОБЕЗПЕЧНА АНТИСПАМ СИСТЕМА ТА ПОКРАЩЕНЕ КЕШУВАННЯ ---
+_antispam_lock = threading.Lock()
+user_message_counts: Dict[int, List[float]] = defaultdict(list)
 last_message_times: Dict[int, float] = {}
 blocked_users: Set[int] = set()
 
-# Кеш для перевірки підписки
+# Кеш для перевірки підписки (короткий TTL для актуальності)
 subscription_cache: Dict[int, tuple] = {}  # user_id: (is_subscribed, timestamp)
-SUBSCRIPTION_CACHE_TTL = 300  # 5 хвилин
+SUBSCRIPTION_CACHE_TTL = 30  # 30 секунд для актуальної перевірки
 
 # Кеш для запобігання дублювання повідомлень
 message_cache: Dict[str, str] = {}
 
+# Обмеження розміру кешів
+MAX_CACHE_SIZE = 10000
+
+# Періодичне очищення кешів
+async def cleanup_caches_periodically():
+    """Періодичне очищення кешів"""
+    while True:
+        try:
+            await asyncio.sleep(3600)  # Кожну годину
+            current_time = time.time()
+
+            with _antispam_lock:
+                # Очищуємо старі записи антиспаму
+                expired_users = []
+                for user_id, messages in user_message_counts.items():
+                    user_message_counts[user_id] = [
+                        msg_time for msg_time in messages
+                        if current_time - msg_time < RATE_LIMIT_WINDOW
+                    ]
+                    if not user_message_counts[user_id]:
+                        expired_users.append(user_id)
+
+                for user_id in expired_users:
+                    del user_message_counts[user_id]
+                    last_message_times.pop(user_id, None)
+
+                # Очищуємо кеш підписок (старіші за 1 хвилину)
+                expired_subscriptions = [
+                    user_id for user_id, (_, timestamp) in subscription_cache.items()
+                    if current_time - timestamp > 60  # 1 хвилина
+                ]
+                for user_id in expired_subscriptions:
+                    del subscription_cache[user_id]
+
+                # Обмежуємо розмір кешів
+                if len(subscription_cache) > MAX_CACHE_SIZE:
+                    # Видаляємо найстаріші записи
+                    sorted_cache = sorted(subscription_cache.items(),
+                                        key=lambda x: x[1][1])
+                    for user_id, _ in sorted_cache[:len(subscription_cache)//2]:
+                        del subscription_cache[user_id]
+
+                if len(message_cache) > MAX_CACHE_SIZE:
+                    message_cache.clear()
+
+            logger.info("✅ Кеші очищено")
+        except Exception as e:
+            logger.error(f"❌ Помилка очищення кешів: {e}")
+# --- КІНЕЦЬ ПОКРАЩЕНЬ ---
+
 # ===== АНТИСПАМ MIDDLEWARE =====
 async def check_rate_limit(user_id: int) -> bool:
-    """Перевірка rate limit для користувача"""
-    if user_id in blocked_users:
-        return False
-
-    current_time = time.time()
-
-    # Ініціалізуємо список для нового користувача
-    if user_id not in user_message_counts:
-        user_message_counts[user_id] = []
-
-    # Очищуємо старі повідомлення (старше RATE_LIMIT_WINDOW секунд)
-    user_message_counts[user_id] = [
-        msg_time for msg_time in user_message_counts[user_id]
-        if current_time - msg_time < RATE_LIMIT_WINDOW
-    ]
-
-    # Перевіряємо cooldown між повідомленнями
-    if user_id in last_message_times:
-        if current_time - last_message_times[user_id] < MESSAGE_COOLDOWN:
+    """Потокобезпечна перевірка rate limit для користувача"""
+    with _antispam_lock:
+        if user_id in blocked_users:
             return False
 
-    # Перевіряємо кількість повідомлень у вікні
-    if len(user_message_counts[user_id]) >= RATE_LIMIT_THRESHOLD:
-        blocked_users.add(user_id)
-        logger.warning(f"Користувач {user_id} заблокований за спам")
-        return False
+        current_time = time.time()
 
-    # Додаємо поточне повідомлення
-    user_message_counts[user_id].append(current_time)
-    last_message_times[user_id] = current_time
+        # Очищуємо старі повідомлення (atomic операція)
+        user_message_counts[user_id] = [
+            msg_time for msg_time in user_message_counts[user_id]
+            if current_time - msg_time < RATE_LIMIT_WINDOW
+        ]
 
-    return True
+        # Перевіряємо cooldown між повідомленнями
+        if user_id in last_message_times:
+            if current_time - last_message_times[user_id] < MESSAGE_COOLDOWN:
+                return False
+
+        # Перевіряємо кількість повідомлень у вікні
+        if len(user_message_counts[user_id]) >= RATE_LIMIT_THRESHOLD:
+            blocked_users.add(user_id)
+            logger.warning(f"Користувач {user_id} заблокований за спам")
+            # Блокуємо в БД асинхронно
+            asyncio.create_task(db.set_user_blocked(user_id, True, 'spam'))
+            return False
+
+        # Додаємо поточне повідомлення
+        user_message_counts[user_id].append(current_time)
+        last_message_times[user_id] = current_time
+
+        return True
 
 # ===== ДОПОМІЖНІ ФУНКЦІЇ =====
 async def find_city(city_input: str) -> Optional[Dict]:
@@ -181,34 +249,79 @@ async def find_city(city_input: str) -> Optional[Dict]:
     cities = await db.find_cities_by_prefix(city_input, 1)
     return cities[0] if cities else None
 
-async def get_available_cities() -> List[Dict]:
-    """Повертає міста з доступними каналами"""
-    return await db.get_available_cities()
-
-async def check_subscription_cached(user_id: int) -> bool:
-    """Перевірка підписки з кешуванням"""
+# --- ОПТИМІЗОВАНА ПЕРЕВІРКА ПІДПИСКИ ---
+async def check_subscription_fresh(user_id: int, force_refresh: bool = False) -> bool:
+    """Свіжа перевірка підписки з мінімальним кешуванням"""
     current_time = time.time()
 
-    # Перевіряємо кеш
-    if user_id in subscription_cache:
+    # Якщо не примусове оновлення, перевіряємо короткий кеш (30 секунд)
+    if not force_refresh and user_id in subscription_cache:
         is_subscribed, timestamp = subscription_cache[user_id]
-        if current_time - timestamp < SUBSCRIPTION_CACHE_TTL:
+        if current_time - timestamp < 30:  # Короткий кеш 30 секунд
             return is_subscribed
 
-    # Робимо запит до API для перевірки підписки
+    # Перевірка через API Telegram з обробкою помилок
     try:
         member = await bot.get_chat_member(ESCADA_CHANNEL, user_id)
         is_subscribed = member.status in ['member', 'administrator', 'creator']
 
-        # Зберігаємо в кеш
+        # Оновлюємо кеш
         subscription_cache[user_id] = (is_subscribed, current_time)
+
+        logger.info(f"Підписка користувача {user_id}: {is_subscribed}")
         return is_subscribed
 
+    except TelegramForbiddenError:
+        # Користувач заблокував бота або не підписаний
+        subscription_cache[user_id] = (False, current_time)
+        logger.info(f"Користувач {user_id} не підписаний (Forbidden)")
+        return False
+
     except Exception as e:
-        logger.warning(f"Помилка перевірки підписки для {user_id}: {e}")
-        # Якщо не можемо перевірити - вважаємо що не підписаний
+        logger.error(f"Помилка API при перевірці підписки {user_id}: {e}")
+
+        # При помилці API повертаємо False для безпеки
+        # Це змусить користувача підписатися
         subscription_cache[user_id] = (False, current_time)
         return False
+
+async def check_subscription_cached(user_id: int) -> bool:
+    """Основна функція перевірки підписки (для сумісності)"""
+    return await check_subscription_fresh(user_id, force_refresh=False)
+# --- КІНЕЦЬ ОПТИМІЗАЦІЇ ---
+
+# --- КЕШУВАННЯ ЗАВАНТАЖЕННЯ МІСТ ---
+# Кеш для міст з оптимізацією для БД
+_cities_cache = {}
+_cities_cache_time = 0
+CITIES_CACHE_TTL = 300  # 5 хвилин
+
+async def get_available_cities() -> List[Dict]:
+    """Повертає міста з доступними каналами з кешуванням"""
+    global _cities_cache, _cities_cache_time
+
+    current_time = time.time()
+
+    # Перевіряємо кеш
+    if _cities_cache and (current_time - _cities_cache_time < CITIES_CACHE_TTL):
+        return _cities_cache
+
+    # Оновлюємо кеш з БД
+    try:
+        cities = await db.get_available_cities()
+        _cities_cache = cities
+        _cities_cache_time = current_time
+        return cities
+    except Exception as e:
+        logger.error(f"Помилка завантаження міст з БД: {e}")
+        # Повертаємо старий кеш якщо є
+        if _cities_cache:
+            logger.warning("Використовуємо старий кеш міст")
+            return _cities_cache
+        # Повертаємо пустий список як fallback
+        return []
+# --- КІНЕЦЬ КЕШУВАННЯ ---
+
 
 def create_main_keyboard() -> ReplyKeyboardMarkup:
     """Головне меню"""
@@ -508,7 +621,7 @@ async def process_city_selection(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "check_subscription")
 async def check_subscription_callback(callback: CallbackQuery,
                                       state: FSMContext):
-    """Перевірка підписки через callback"""
+    """Перевірка підписки через callback з примусовим оновленням"""
     user_id = callback.from_user.id
     data = await state.get_data()
     city_code = data.get('selected_city')
@@ -517,7 +630,9 @@ async def check_subscription_callback(callback: CallbackQuery,
         await callback.answer("❌ Помилка: місто не обрано", show_alert=True)
         return
 
-    is_subscribed = await check_subscription_cached(user_id)
+    # Примусова свіжа перевірка підписки
+    await callback.answer("🔄 Перевіряю підписку...")
+    is_subscribed = await check_subscription_fresh(user_id, force_refresh=True)
 
     if is_subscribed:
         # Отримуємо дані міста
@@ -525,13 +640,17 @@ async def check_subscription_callback(callback: CallbackQuery,
         if city:
             await send_city_channel(callback, city, user_id)
             await state.clear()
-            await callback.answer("✅ Підписка підтверджена!")
+            # Повідомляємо про успіх через нове повідомлення
+            try:
+                await callback.message.answer("✅ Підписка підтверджена! Канал відкрито.")
+            except:
+                pass
         else:
             await callback.answer("❌ Помилка: місто не знайдено",
                                   show_alert=True)
     else:
         await callback.answer(
-            "❌ Підписку не знайдено. Спочатку підпішіться на канал!",
+            "❌ Підписку не знайдено. Переконайтесь, що ви підписані на канал!",
             show_alert=True)
 
 @router.callback_query(F.data == "back_to_menu")
@@ -655,13 +774,37 @@ async def admin_clear_cache(callback: CallbackQuery):
         return
 
     # Очищуємо всі кеші
-    subscription_cache.clear()
-    message_cache.clear()
-    blocked_users.clear()
-    user_message_counts.clear()
-    last_message_times.clear()
+    with _antispam_lock:
+        subscription_cache.clear()
+        message_cache.clear()
+        blocked_users.clear()
+        user_message_counts.clear()
+        last_message_times.clear()
 
     await callback.answer("✅ Всі кеші очищено!", show_alert=True)
+
+@router.message(Command("checksub"))
+async def cmd_admin_check_subscription(message: Message):
+    """Адмінська команда для перевірки підписки користувача"""
+    if message.from_user.id != ADMIN_ID:
+        return
+
+    try:
+        parts = message.text.split()
+        if len(parts) != 2:
+            await message.answer("❌ Використання: /checksub USER_ID")
+            return
+
+        user_id = int(parts[1])
+        is_subscribed = await check_subscription_fresh(user_id, force_refresh=True)
+
+        status = "✅ Підписаний" if is_subscribed else "❌ Не підписаний"
+        await message.answer(f"Користувач {user_id}: {status}")
+
+    except ValueError:
+        await message.answer("❌ Некоректний USER_ID")
+    except Exception as e:
+        await message.answer(f"❌ Помилка: {e}")
 
 # ===== ОБРОБНИК РОЗСИЛКИ =====
 @router.message(StateFilter(BotStates.waiting_for_broadcast_message))
@@ -864,7 +1007,7 @@ async def set_bot_commands():
     """Встановлення команд бота"""
     commands = [
         BotCommand(command="start", description="🚀 Почати роботу"),
-        BotCommand(command="help", description="ℹ️ Довідка"),
+        BotCommand(command="help", description="ℹ️ Допомога"),
         BotCommand(command="cancel", description="❌ Скасувати дію"),
     ]
     await bot.set_my_commands(commands)
@@ -892,6 +1035,9 @@ async def main():
 
         # Встановлюємо команди
         await set_bot_commands()
+
+        # Запускаємо фонове очищення кешів
+        asyncio.create_task(cleanup_caches_periodically())
 
         # Повідомляємо адміна про запуск
         if ADMIN_ID:
