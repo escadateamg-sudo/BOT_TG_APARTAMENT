@@ -2,6 +2,7 @@ import asyncio
 import aiosqlite
 import json
 import logging
+import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
@@ -9,30 +10,34 @@ logger = logging.getLogger(__name__)
 
 class Database:
     def __init__(self):
-        self.db_path = "bot_database.db"
-        self.use_postgres = False
-        self._pool = None
+        # Для Render.com використовуємо /tmp для тимчасових файлів
+        self.db_path = os.getenv('DB_PATH', '/tmp/bot_database.db')
+        self._init_done = False
+        
+        # Створюємо директорію якщо не існує
+        db_dir = os.path.dirname(self.db_path)
+        os.makedirs(db_dir, exist_ok=True)
 
     async def init_pool(self):
-        """Ініціалізація бази даних"""
+        """Ініціалізація бази даних SQLite"""
         try:
-            # Перевіряємо чи встановлено asyncpg
-            try:
-                import asyncpg
-                # Тут можна додати логіку для PostgreSQL якщо потрібно
-                logger.info("✅ asyncpg доступний")
-            except ImportError:
-                logger.warning("⚠️ asyncpg не встановлено. Використовується SQLite")
-
             # Перевіряємо чи встановлено aiosqlite
             try:
                 import aiosqlite
                 logger.info("✅ aiosqlite доступний")
             except ImportError:
-                logger.warning("⚠️ aiosqlite не встановлено")
+                logger.error("❌ aiosqlite не встановлено")
+                raise
 
+            # Тестуємо з'єднання
+            async with aiosqlite.connect(self.db_path) as conn:
+                await conn.execute('SELECT 1')
+                logger.info(f"✅ SQLite підключено: {self.db_path}")
+            
             await self.create_tables()
+            self._init_done = True
             logger.info("✅ База даних ініціалізована")
+            
         except Exception as e:
             logger.error(f"❌ Помилка ініціалізації БД: {e}")
             raise
@@ -78,6 +83,19 @@ class Database:
                 )
             """)
 
+            # Таблиця дій користувачів (для статистики)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS user_actions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    action TEXT NOT NULL,
+                    city_code TEXT,
+                    city_name TEXT,
+                    payload_json TEXT,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
             # Таблиця дій адміністратора
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS admin_actions (
@@ -89,7 +107,19 @@ class Database:
                 )
             """)
 
+            # Створюємо індекси для оптимізації
+            await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_users_active 
+                ON users (user_id) WHERE is_blocked = FALSE
+            """)
+            
+            await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_user_actions_date 
+                ON user_actions (created_at DESC)
+            """)
+
             await conn.commit()
+            logger.info("✅ Всі таблиці створено")
 
     async def save_user(self, user_id: int, username: str = None, first_name: str = None):
         """Збереження користувача"""
@@ -102,16 +132,21 @@ class Database:
             await conn.commit()
 
     async def get_users_count(self) -> int:
-        """Кількість користувачів"""
+        """Кількість активних користувачів"""
         async with self.get_connection() as conn:
             cursor = await conn.execute("SELECT COUNT(*) FROM users WHERE NOT is_blocked")
             row = await cursor.fetchone()
             return row[0] if row else 0
 
     async def get_all_users(self) -> List[Dict]:
-        """Всі активні користувачі"""
+        """Всі активні користувачі для розсилки"""
         async with self.get_connection() as conn:
-            cursor = await conn.execute("SELECT user_id, username, first_name FROM users WHERE NOT is_blocked")
+            cursor = await conn.execute("""
+                SELECT user_id, username, first_name 
+                FROM users 
+                WHERE NOT is_blocked 
+                ORDER BY created_at
+            """)
             rows = await cursor.fetchall()
             return [{"user_id": row[0], "username": row[1], "first_name": row[2]} for row in rows]
 
@@ -127,10 +162,13 @@ class Database:
 
     async def log_city_selection(self, user_id: int, city_code: str, city_name: str):
         """Логування вибору міста користувачем"""
-        await self.log_admin_action(user_id, 'city_selected', {
-            'city_code': city_code,
-            'city_name': city_name
-        })
+        now = datetime.utcnow().isoformat()
+        async with self.get_connection() as conn:
+            await conn.execute("""
+                INSERT INTO user_actions (user_id, action, city_code, city_name, created_at)
+                VALUES (?, ?, ?, ?, ?)
+            """, (user_id, 'city_selected', city_code, city_name, now))
+            await conn.commit()
 
     async def find_city_by_alias(self, alias: str) -> Optional[Dict]:
         """Пошук міста по псевдоніму"""
@@ -197,329 +235,24 @@ class Database:
             row = await cursor.fetchone()
             stats['new_users_7d'] = row[0] if row else 0
 
-            # Загальна кількість відписок (заблокованих)
+            # Топ міст за останні 30 днів
+            month_ago = (datetime.utcnow() - timedelta(days=30)).isoformat()
+            cursor = await conn.execute("""
+                SELECT city_code, city_name, COUNT(*) as count
+                FROM user_actions 
+                WHERE action = 'city_selected' AND created_at >= ?
+                GROUP BY city_code, city_name
+                ORDER BY count DESC
+                LIMIT 5
+            """, (month_ago,))
+            rows = await cursor.fetchall()
+            stats['top_cities'] = [
+                {"city_code": row[0], "city_name_uk": row[1], "count": row[2]} 
+                for row in rows
+            ]
+
+            # Загальна кількість відписок
             stats['total_unsubscriptions'] = stats['blocked_users']
-            stats['unsubscribed_7d'] = 0
+            stats['unsubscribed_7d'] = 0  # Можна додати логіку для відстеження
 
         return stats
-
-    async def seed_cities_data(self):
-        """Заповнення початкових даних міст"""
-        cities_data = [
-            # Пріоритетні міста (перші в списку)
-            {
-                'code': 'kyiv',
-                'name_uk': 'Київ',
-                'channel_url': 'https://t.me/+1Dn41QYXr00yMTNi',
-                'aliases': ['київ', 'киев', 'kyiv', 'kiev']
-            },
-            {
-                'code': 'kharkiv',
-                'name_uk': 'Харків',
-                'channel_url': 'https://t.me/+thVaxxh_vR85MjVi',
-                'aliases': ['харків', 'харьков', 'kharkiv', 'kharkov']
-            },
-            {
-                'code': 'dnipro',
-                'name_uk': 'Дніпро',
-                'channel_url': 'https://t.me/+N1GBEYNwmohjODAy',
-                'aliases': ['дніпро', 'днепр', 'dnipro', 'dnepr']
-            },
-            {
-                'code': 'lviv',
-                'name_uk': 'Львів',
-                'channel_url': 'https://t.me/+6n24GOCizpQ0NzMy',
-                'aliases': ['львів', 'львов', 'lviv', 'lwow']
-            },
-            {
-                'code': 'odesa',
-                'name_uk': 'Одеса',
-                'channel_url': 'https://t.me/+I9c4gGScQe40Nzdi',
-                'aliases': ['одеса', 'одесса', 'odesa', 'odessa']
-            },
-            # Інші міста
-            {
-                'code': 'poltava',
-                'name_uk': 'Полтава',
-                'channel_url': 'https://t.me/+z5qd0XB1QWQ0MWNi',
-                'aliases': ['полтава', 'poltava']
-            },
-            {
-                'code': 'zhytomyr',
-                'name_uk': 'Житомир',
-                'channel_url': 'https://t.me/+njAe0h54d7IyOWRi',
-                'aliases': ['житомир', 'zhytomyr']
-            },
-            {
-                'code': 'zaporizhzhia',
-                'name_uk': 'Запоріжжя',
-                'channel_url': 'https://t.me/+fJmKDoQ-a6BjY2Vi',
-                'aliases': ['запоріжжя', 'запорожье', 'zaporizhzhia']
-            },
-            {
-                'code': 'ivano-frankivsk',
-                'name_uk': 'Івано-Франківськ',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['івано-франківськ', 'ivano-frankivsk']
-            },
-            {
-                'code': 'chernivtsi',
-                'name_uk': 'Чернівці',
-                'channel_url': 'https://t.me/+MqdooK82_eA5Mjhi',
-                'aliases': ['чернівці', 'черновцы', 'chernivtsi']
-            },
-            {
-                'code': 'khmelnytskyi',
-                'name_uk': 'Хмельницький',
-                'channel_url': 'https://t.me/+InPiC-xZZ_o0ZTQ6',
-                'aliases': ['хмельницький', 'хмельницкий', 'khmelnytskyi']
-            },
-            {
-                'code': 'ternopil',
-                'name_uk': 'Тернопіль',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['тернопіль', 'тернополь', 'ternopil']
-            },
-            {
-                'code': 'cherkasy',
-                'name_uk': 'Черкаси',
-                'channel_url': 'https://t.me/+k3gzY_lCrwo4ZTYy',
-                'aliases': ['черкаси', 'cherkasy']
-            },
-            {
-                'code': 'vinnytsia',
-                'name_uk': 'Вінниця',
-                'channel_url': 'https://t.me/+DkXJOA1Z2RRlMGQy',
-                'aliases': ['вінниця', 'винница', 'vinnytsia']
-            },
-            {
-                'code': 'uzhhorod',
-                'name_uk': 'Ужгород',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['ужгород', 'uzhhorod']
-            },
-            {
-                'code': 'lutsk',
-                'name_uk': 'Луцьк',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['луцьк', 'луцк', 'lutsk']
-            },
-            {
-                'code': 'rivne',
-                'name_uk': 'Рівне',
-                'channel_url': 'https://t.me/+LY-YQ_JD3oNiMGI6',
-                'aliases': ['рівне', 'ровно', 'rivne']
-            },
-            {
-                'code': 'kropyvnytskyi',
-                'name_uk': 'Кропивницький',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['кропивницький', 'кропивницкий', 'kropyvnytskyi']
-            },
-            {
-                'code': 'mykolaiv',
-                'name_uk': 'Миколаїв',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['миколаїв', 'николаев', 'mykolaiv']
-            },
-            {
-                'code': 'sumy',
-                'name_uk': 'Суми',
-                'channel_url': 'https://t.me/+dCNkA-INwd40OWYy',
-                'aliases': ['суми', 'sumy']
-            },
-            {
-                'code': 'chernihiv',
-                'name_uk': 'Чернігів',
-                'channel_url': 'https://t.me/+VOsRB3Zm3mQzMWM6',
-                'aliases': ['чернігів', 'чернигов', 'chernihiv']
-            },
-            {
-                'code': 'kherson',
-                'name_uk': 'Херсон',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['херсон', 'kherson']
-            },
-            {
-                'code': 'kremenchuk',
-                'name_uk': 'Кременчук',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['кременчук', 'kremenchuk']
-            },
-            {
-                'code': 'bila-tserkva',
-                'name_uk': 'Біла Церква',
-                'channel_url': 'https://t.me/+LGpIp61JC_w3ZDM6',
-                'aliases': ['біла церква', 'белая церковь', 'bila-tserkva']
-            },
-            {
-                'code': 'brovary',
-                'name_uk': 'Бровари',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['бровари', 'brovary']
-            },
-            {
-                'code': 'boryspil',
-                'name_uk': 'Бориспіль',
-                'channel_url': 'https://t.me/+BhDo7PnTuB41Y2Yy',
-                'aliases': ['бориспіль', 'борисполь', 'boryspil']
-            },
-            {
-                'code': 'irpin',
-                'name_uk': 'Ірпінь',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['ірпінь', 'ирпень', 'irpin']
-            },
-            {
-                'code': 'bucha',
-                'name_uk': 'Буча',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['буча', 'bucha']
-            },
-            {
-                'code': 'uman',
-                'name_uk': 'Умань',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['умань', 'uman']
-            },
-            {
-                'code': 'oleksandriia',
-                'name_uk': 'Олександрія',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['олександрія', 'александрия', 'oleksandriia']
-            },
-            {
-                'code': 'mukachevo',
-                'name_uk': 'Мукачево',
-                'channel_url': 'https://t.me/+v_9k4nwiQ_RlY2M6',
-                'aliases': ['мукачево', 'mukachevo']
-            },
-            {
-                'code': 'drohobych',
-                'name_uk': 'Дрогобич',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['дрогобич', 'drohobych']
-            },
-            {
-                'code': 'stryi',
-                'name_uk': 'Стрий',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['стрий', 'stryi']
-            },
-            {
-                'code': 'chervonohrad',
-                'name_uk': 'Червоноград',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['червоноград', 'chervonohrad']
-            },
-            {
-                'code': 'kolomyia',
-                'name_uk': 'Коломия',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['коломия', 'kolomyia']
-            },
-            {
-                'code': 'izmail',
-                'name_uk': 'Ізмаїл',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['ізмаїл', 'измаил', 'izmail']
-            },
-            {
-                'code': 'chornomorsk',
-                'name_uk': 'Чорноморськ',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['чорноморськ', 'черноморск', 'chornomorsk']
-            },
-            {
-                'code': 'yuzhne',
-                'name_uk': 'Южне',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['южне', 'yuzhne']
-            },
-            {
-                'code': 'podilsk',
-                'name_uk': 'Подільськ',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['подільськ', 'подольск', 'podilsk']
-            },
-            {
-                'code': 'kryvyi-rih',
-                'name_uk': 'Кривий Ріг',
-                'channel_url': 'https://t.me/+9-w3x2jR8ik1OTNi',
-                'aliases': ['кривий ріг', 'кривой рог', 'kryvyi-rih']
-            },
-            {
-                'code': 'kamianske',
-                'name_uk': 'Кам\'янське',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['кам\'янське', 'каменское', 'kamianske']
-            },
-            {
-                'code': 'pavlohrad',
-                'name_uk': 'Павлоград',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['павлоград', 'pavlohrad']
-            },
-            {
-                'code': 'lozova',
-                'name_uk': 'Лозова',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['лозова', 'lozova']
-            },
-            {
-                'code': 'chuhuiv',
-                'name_uk': 'Чугуїв',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['чугуїв', 'чугуев', 'chuhuiv']
-            },
-            {
-                'code': 'slavutych',
-                'name_uk': 'Славутич',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['славутич', 'slavutych']
-            },
-            {
-                'code': 'truskavets',
-                'name_uk': 'Трускавець',
-                'channel_url': '',  # Додасте пізніше
-                'aliases': ['трускавець', 'трускавец', 'truskavets']
-            }
-        ]
-
-        async with self.get_connection() as conn:
-            for city in cities_data:
-                # Вставляємо місто
-                now = datetime.utcnow().isoformat()
-                await conn.execute("""
-                    INSERT OR REPLACE INTO cities (code, name_uk, channel_url, updated_at)
-                    VALUES (?, ?, ?, ?)
-                """, (city['code'], city['name_uk'], city['channel_url'], now))
-
-                # Видаляємо старі aliases
-                await conn.execute("DELETE FROM city_aliases WHERE city_code = ?", (city['code'],))
-
-                # Додаємо нові aliases
-                for alias in city['aliases']:
-                    await conn.execute("""
-                        INSERT OR IGNORE INTO city_aliases (city_code, alias)
-                        VALUES (?, ?)
-                    """, (city['code'], alias))
-
-            await conn.commit()
-
-        logger.info("✅ Дані міст ініціалізовано")
-
-    async def log_admin_action(self, admin_tg_id: int, action: str, payload: Dict = None):
-        """Логування дій адміністратора"""
-        now = datetime.utcnow().isoformat()
-        async with self.get_connection() as conn:
-            await conn.execute("""
-                INSERT INTO admin_actions (admin_tg_id, action, payload_json, created_at)
-                VALUES (?, ?, ?, ?)
-            """, (admin_tg_id, action, json.dumps(payload or {}), now))
-            await conn.commit()
-
-    async def close(self):
-        """Закриття з'єднання"""
-        if self._pool:
-            await self._pool.close()
