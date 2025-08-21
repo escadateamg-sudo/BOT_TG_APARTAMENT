@@ -13,7 +13,7 @@ class Database:
     def __init__(self):
         # Получаем DATABASE_URL из переменных окружения (External URL для Render)
         self.database_url = os.getenv(
-            'DATABASE_URL', 
+            'DATABASE_URL',
             'postgresql://botuser:AdtVc8H6oXNAWoR0ZbZIC1Cz6Sb56NF4@dpg-d2hp9ibipnbc73cvnj60-a.frankfurt-postgres.render.com/botdb_6cfm'
         )
         self._pool = None
@@ -32,10 +32,10 @@ class Database:
                 }
             )
             logger.info("✅ PostgreSQL пул соединений создан")
-            
+
             # Создаем таблицы при первом запуске
             await self.create_tables()
-            
+
         except Exception as e:
             logger.error(f"❌ Ошибка создания пула PostgreSQL: {e}")
             raise
@@ -51,7 +51,7 @@ class Database:
         """Контекстный менеджер для получения соединения из пула"""
         if not self._pool:
             raise RuntimeError("Пул соединений не инициализирован")
-        
+
         conn = await self._pool.acquire()
         try:
             yield conn
@@ -140,8 +140,8 @@ class Database:
             await conn.execute('''
                 INSERT INTO users (user_id, username, first_name, last_activity)
                 VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
-                ON CONFLICT (user_id) 
-                DO UPDATE SET 
+                ON CONFLICT (user_id)
+                DO UPDATE SET
                     username = EXCLUDED.username,
                     first_name = EXCLUDED.first_name,
                     last_activity = CURRENT_TIMESTAMP
@@ -163,7 +163,7 @@ class Database:
         """Блокировка/разблокировка пользователя"""
         async with self.get_connection() as conn:
             await conn.execute('''
-                UPDATE users 
+                UPDATE users
                 SET is_blocked = $1, blocked_reason = $2
                 WHERE user_id = $3
             ''', is_blocked, reason, user_id)
@@ -182,10 +182,10 @@ class Database:
             # Сначала ищем точное совпадение по коду
             row = await conn.fetchrow('''
                 SELECT code, name_uk, name_ru, name_en, channel_url
-                FROM cities 
+                FROM cities
                 WHERE LOWER(code) = LOWER($1) AND is_active = TRUE
             ''', alias)
-            
+
             if row:
                 return dict(row)
 
@@ -196,7 +196,7 @@ class Database:
                 JOIN city_aliases ca ON c.code = ca.city_code
                 WHERE LOWER(ca.alias) = LOWER($1) AND c.is_active = TRUE
             ''', alias)
-            
+
             return dict(row) if row else None
 
     async def find_cities_by_prefix(self, prefix: str, limit: int = 10) -> List[Dict]:
@@ -215,7 +215,7 @@ class Database:
                 ORDER BY c.name_uk
                 LIMIT $2
             ''', f'{prefix}%', limit)
-            
+
             return [dict(row) for row in rows]
 
     async def get_available_cities(self) -> List[Dict]:
@@ -223,11 +223,11 @@ class Database:
         async with self.get_connection() as conn:
             rows = await conn.fetch('''
                 SELECT code, name_uk, name_ru, name_en, channel_url
-                FROM cities 
+                FROM cities
                 WHERE is_active = TRUE AND channel_url IS NOT NULL
                 ORDER BY name_uk
             ''')
-            
+
             return [dict(row) for row in rows]
 
     async def get_admin_stats(self) -> Dict:
@@ -248,7 +248,7 @@ class Database:
             month_ago = datetime.now() - timedelta(days=30)
             top_cities = await conn.fetch('''
                 SELECT city_code, city_name, COUNT(*) as count
-                FROM user_actions 
+                FROM user_actions
                 WHERE action_type = 'city_selected' AND created_at >= $1
                 GROUP BY city_code, city_name
                 ORDER BY count DESC
@@ -281,7 +281,7 @@ class Database:
                 'name_uk': 'Київ',
                 'name_ru': 'Киев',
                 'name_en': 'Kyiv',
-                'channel_url': 'https://t.me/+qhZZnTVBluMyOWNi',
+                'channel_url': 'https://t.me/+1Dn41QYXr00yMTNi',
                 'aliases': ['kyiv', 'kiev', 'киев', 'київ', 'столица', 'столиця']
             },
             {
@@ -289,23 +289,15 @@ class Database:
                 'name_uk': 'Харків',
                 'name_ru': 'Харьков',
                 'name_en': 'Kharkiv',
-                'channel_url': 'https://t.me/+qhZZnTVBluMyOWNi',
+                'channel_url': 'https://t.me/+thVaxxh_vR85MjVi',
                 'aliases': ['kharkiv', 'kharkov', 'харків', 'харьков']
-            },
-            {
-                'code': 'odesa',
-                'name_uk': 'Одеса',
-                'name_ru': 'Одесса',
-                'name_en': 'Odesa',
-                'channel_url': 'https://t.me/+qhZZnTVBluMyOWNi',
-                'aliases': ['odesa', 'odessa', 'одеса', 'одесса']
             },
             {
                 'code': 'dnipro',
                 'name_uk': 'Дніпро',
                 'name_ru': 'Днепр',
                 'name_en': 'Dnipro',
-                'channel_url': 'https://t.me/+qhZZnTVBluMyOWNi',
+                'channel_url': 'https://t.me/+N1GBEYNwmohjODAy',
                 'aliases': ['dnipro', 'dnepr', 'дніпро', 'днепр', 'днепропетровск']
             },
             {
@@ -313,8 +305,128 @@ class Database:
                 'name_uk': 'Львів',
                 'name_ru': 'Львов',
                 'name_en': 'Lviv',
-                'channel_url': 'https://t.me/+qhZZnTVBluMyOWNi',
+                'channel_url': 'https://t.me/+6n24GOCizpQ0NzMy',
                 'aliases': ['lviv', 'lvov', 'львів', 'львов']
+            },
+            {
+                'code': 'odesa',
+                'name_uk': 'Одеса',
+                'name_ru': 'Одесса',
+                'name_en': 'Odesa',
+                'channel_url': 'https://t.me/+I9c4gGScQe40Nzdi',
+                'aliases': ['odesa', 'odessa', 'одеса', 'одесса']
+            },
+            {
+                'code': 'poltava',
+                'name_uk': 'Полтава',
+                'name_ru': 'Полтава',
+                'name_en': 'Poltava',
+                'channel_url': 'https://t.me/+z5qd0XB1QWQ0MWNi',
+                'aliases': ['poltava', 'полтава']
+            },
+            {
+                'code': 'zhytomyr',
+                'name_uk': 'Житомир',
+                'name_ru': 'Житомир',
+                'name_en': 'Zhytomyr',
+                'channel_url': 'https://t.me/+njAe0h54d7IyOWRi',
+                'aliases': ['zhytomyr', 'житомир']
+            },
+            {
+                'code': 'zaporizhzhya',
+                'name_uk': 'Запоріжжя',
+                'name_ru': 'Запорожье',
+                'name_en': 'Zaporizhzhya',
+                'channel_url': 'https://t.me/+fJmKDoQ-a6BjY2Vi',
+                'aliases': ['zaporizhzhya', 'zaporozhye', 'запоріжжя', 'запорожье']
+            },
+            {
+                'code': 'chernivtsi',
+                'name_uk': 'Чернівці',
+                'name_ru': 'Черновцы',
+                'name_en': 'Chernivtsi',
+                'channel_url': 'https://t.me/+MqdooK82_eA5Mjhi',
+                'aliases': ['chernivtsi', 'chernovtsy', 'чернівці', 'черновцы']
+            },
+            {
+                'code': 'khmelnytskyi',
+                'name_uk': 'Хмельницький',
+                'name_ru': 'Хмельницкий',
+                'name_en': 'Khmelnytskyi',
+                'channel_url': 'https://t.me/+InPiC-xZZ_o0ZTQ6',
+                'aliases': ['khmelnytskyi', 'khmelnitskiy', 'хмельницький', 'хмельницкий']
+            },
+            {
+                'code': 'cherkasy',
+                'name_uk': 'Черкаси',
+                'name_ru': 'Черкассы',
+                'name_en': 'Cherkasy',
+                'channel_url': 'https://t.me/+k3gzY_lCrwo4ZTYy',
+                'aliases': ['cherkasy', 'cherkassy', 'черкаси', 'черкассы']
+            },
+            {
+                'code': 'vinnytsia',
+                'name_uk': 'Вінниця',
+                'name_ru': 'Винница',
+                'name_en': 'Vinnytsia',
+                'channel_url': 'https://t.me/+DkXJOA1Z2RRlMGQy',
+                'aliases': ['vinnytsia', 'vinnitsa', 'вінниця', 'винница']
+            },
+            {
+                'code': 'rivne',
+                'name_uk': 'Рівне',
+                'name_ru': 'Ровно',
+                'name_en': 'Rivne',
+                'channel_url': 'https://t.me/+LY-YQ_JD3oNiMGI6',
+                'aliases': ['rivne', 'rovno', 'рівне', 'ровно']
+            },
+            {
+                'code': 'sumy',
+                'name_uk': 'Суми',
+                'name_ru': 'Сумы',
+                'name_en': 'Sumy',
+                'channel_url': 'https://t.me/+dCNkA-INwd40OWYy',
+                'aliases': ['sumy', 'суми', 'сумы']
+            },
+            {
+                'code': 'chernihiv',
+                'name_uk': 'Чернігів',
+                'name_ru': 'Чернигов',
+                'name_en': 'Chernihiv',
+                'channel_url': 'https://t.me/+VOsRB3Zm3mQzMWM6',
+                'aliases': ['chernihiv', 'chernigov', 'чернігів', 'чернигов']
+            },
+            {
+                'code': 'bila_tserkva',
+                'name_uk': 'Біла Церква',
+                'name_ru': 'Белая Церковь',
+                'name_en': 'Bila Tserkva',
+                'channel_url': 'https://t.me/+LGpIp61JC_w3ZDM6',
+                'aliases': ['bila_tserkva', 'belaya_tserkov', 'біла церква', 'белая церковь', 'білацерква']
+            },
+            {
+                'code': 'boryspil',
+                'name_uk': 'Бориспіль',
+                'name_ru': 'Борисполь',
+                'name_en': 'Boryspil',
+                'channel_url': 'https://t.me/+BhDo7PnTuB41Y2Yy',
+                'aliases': ['boryspil', 'borispol', 'бориспіль', 'борисполь']
+            },
+            {
+                'code': 'mukachevo',
+                'name_uk': 'Мукачево',
+                'name_ru': 'Мукачево',
+                'name_en': 'Mukachevo',
+                'channel_url': 'https://t.me/+v_9k4nwiQ_RlY2M6',
+                'aliases': ['mukachevo', 'мукачево']
+            },
+            {
+                'code': 'kryvyi_rih',
+                'name_uk': 'Кривий Ріг',
+                'name_ru': 'Кривой Рог',
+                'name_en': 'Kryvyi Rih',
+                'channel_url': 'https://t.me/+9-w3x2jR8ik1OTNi',
+                'aliases': ['kryvyi_rih', 'krivoy_rog', 'кривий ріг', 'кривой рог', 'кривийріг']
             }
         ]
 
@@ -324,14 +436,14 @@ class Database:
                 await conn.execute('''
                     INSERT INTO cities (code, name_uk, name_ru, name_en, channel_url)
                     VALUES ($1, $2, $3, $4, $5)
-                    ON CONFLICT (code) 
-                    DO UPDATE SET 
+                    ON CONFLICT (code)
+                    DO UPDATE SET
                         name_uk = EXCLUDED.name_uk,
                         name_ru = EXCLUDED.name_ru,
                         name_en = EXCLUDED.name_en,
                         channel_url = EXCLUDED.channel_url,
                         is_active = TRUE
-                ''', city_data['code'], city_data['name_uk'], city_data['name_ru'], 
+                ''', city_data['code'], city_data['name_uk'], city_data['name_ru'],
                      city_data['name_en'], city_data['channel_url'])
 
                 # Добавляем алиасы
