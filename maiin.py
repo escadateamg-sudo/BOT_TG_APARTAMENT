@@ -31,36 +31,32 @@ try:
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
-    print("⚠️ python-dotenv не встановлено")
+    print("⚠️ python-dotenv не встановлено, використовуємо системні змінні")
 
-# Перевірка DATABASE_URL для Render
+# Перевірка DATABASE_URL для Replit PostgreSQL
 DATABASE_URL = os.getenv('DATABASE_URL')
 if DATABASE_URL:
     print("✅ DATABASE_URL знайдено - використовуємо PostgreSQL")
 else:
-    print("⚠️ DATABASE_URL не встановлено - перевірте налаштування Render")
+    print("⚠️ DATABASE_URL не встановлено - перевірте налаштування бази даних")
 
 # ===== КОНФІГУРАЦІЯ =====
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 
-# Додаткова перевірка токена
 def validate_bot_token(token: str) -> bool:
     """Перевіряє формат токена Telegram бота"""
     if not token:
         return False
 
-    # Токен має формат: число:строка (наприклад: 123456789:ABC-DEF1234ghIkl-zyx57W2v1u123ew11)
     parts = token.split(':')
     if len(parts) != 2:
         return False
 
-    # Перша частина має бути числом
     try:
         int(parts[0])
     except ValueError:
         return False
 
-    # Друга частина має бути не менше 35 символів
     if len(parts[1]) < 28:
         return False
 
@@ -68,9 +64,7 @@ def validate_bot_token(token: str) -> bool:
 
 if not BOT_TOKEN:
     print("❌ ПОМИЛКА: BOT_TOKEN не встановлено!")
-    print("💡 Створіть файл .env з вмістом:")
-    print("BOT_TOKEN=your_bot_token_here")
-    print("ADMIN_ID=your_telegram_user_id")
+    print("💡 Встановіть змінну BOT_TOKEN в налаштуваннях Replit")
     exit(1)
 
 if not validate_bot_token(BOT_TOKEN):
@@ -79,7 +73,6 @@ if not validate_bot_token(BOT_TOKEN):
     print("🤖 Отримайте новий токен від @BotFather")
     exit(1)
 
-# --- ВИПРАВЛЕННЯ КРИТИЧНОЇ УРАЗЛИВОСТІ ADMIN_ID ---
 try:
     ADMIN_ID = int(os.getenv('ADMIN_ID', '0'))
 except ValueError:
@@ -87,20 +80,17 @@ except ValueError:
 
 if ADMIN_ID == 0:
     print("❌ КРИТИЧНА ПОМИЛКА: ADMIN_ID не встановлено!")
-    print("💡 Додайте в файл .env:")
-    print("ADMIN_ID=your_telegram_user_id")
-    print("🔒 Без ADMIN_ID бот небезпечний!")
+    print("💡 Встановіть змінну ADMIN_ID в налаштуваннях Replit")
     exit(1)
-# --- КІНЕЦЬ ВИПРАВЛЕННЯ ---
 
-ESCADA_CHANNEL = '@Escada_Ukraine'  # Назва головного каналу
-ESCADA_CHANNEL_LINK = 'https://t.me/+qhZZnTVBluMyOWNi'  # Посилання на головний канал
+ESCADA_CHANNEL = '@Escada_Ukraine'
+ESCADA_CHANNEL_LINK = 'https://t.me/+qhZZnTVBluMyOWNi'
 ADMIN_CONTACT = 'Escada_m'
 
 # Константи для антиспаму
-RATE_LIMIT_THRESHOLD = 5  # max повідомлень
-RATE_LIMIT_WINDOW = 10  # за 10 секунд
-MESSAGE_COOLDOWN = 2  # пауза між командами
+RATE_LIMIT_THRESHOLD = 5
+RATE_LIMIT_WINDOW = 10
+MESSAGE_COOLDOWN = 2
 
 # ===== СТАНИ FSM =====
 class BotStates(StatesGroup):
@@ -114,15 +104,13 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('bot.log', encoding='utf-8'),
-        logging.StreamHandler()
+        logging.StreamHandler()  # Тільки консоль для продакшену
     ])
 logger = logging.getLogger(__name__)
 
 # ===== ІНІЦІАЛІЗАЦІЯ =====
 storage = MemoryStorage()
 
-# Додаткова обробка помилки ініціалізації бота
 try:
     bot = Bot(token=BOT_TOKEN,
               default=DefaultBotProperties(parse_mode=ParseMode.HTML))
@@ -140,28 +128,28 @@ dp.include_router(router)
 # База даних
 db = Database()
 
-# --- ПОТОКОБЕЗПЕЧНА АНТИСПАМ СИСТЕМА ТА ПОКРАЩЕНЕ КЕШУВАННЯ ---
+# Антиспам система
 _antispam_lock = threading.Lock()
 user_message_counts: Dict[int, List[float]] = defaultdict(list)
 last_message_times: Dict[int, float] = {}
 blocked_users: Set[int] = set()
 
-# Кеш для перевірки підписки (короткий TTL для актуальності)
-subscription_cache: Dict[int, tuple] = {}  # user_id: (is_subscribed, timestamp)
-SUBSCRIPTION_CACHE_TTL = 30  # 30 секунд для актуальної перевірки
+# Кеш для перевірки підписки
+subscription_cache: Dict[int, tuple] = {}
+SUBSCRIPTION_CACHE_TTL = 30
 
 # Кеш для запобігання дублювання повідомлень
 message_cache: Dict[str, str] = {}
 
 # Обмеження розміру кешів
-MAX_CACHE_SIZE = 10000
+MAX_CACHE_SIZE = 1000  # Зменшено для економії пам'яті
 
 # Періодичне очищення кешів
 async def cleanup_caches_periodically():
     """Періодичне очищення кешів"""
     while True:
         try:
-            await asyncio.sleep(3600)  # Кожну годину
+            await asyncio.sleep(1800)  # Кожні 30 хвилин
             current_time = time.time()
 
             with _antispam_lock:
@@ -179,21 +167,17 @@ async def cleanup_caches_periodically():
                     del user_message_counts[user_id]
                     last_message_times.pop(user_id, None)
 
-                # Очищуємо кеш підписок (старіші за 1 хвилину)
+                # Очищуємо кеш підписок
                 expired_subscriptions = [
                     user_id for user_id, (_, timestamp) in subscription_cache.items()
-                    if current_time - timestamp > 60  # 1 хвилина
+                    if current_time - timestamp > 60
                 ]
                 for user_id in expired_subscriptions:
                     del subscription_cache[user_id]
 
                 # Обмежуємо розмір кешів
                 if len(subscription_cache) > MAX_CACHE_SIZE:
-                    # Видаляємо найстаріші записи
-                    sorted_cache = sorted(subscription_cache.items(),
-                                        key=lambda x: x[1][1])
-                    for user_id, _ in sorted_cache[:len(subscription_cache)//2]:
-                        del subscription_cache[user_id]
+                    subscription_cache.clear()
 
                 if len(message_cache) > MAX_CACHE_SIZE:
                     message_cache.clear()
@@ -201,7 +185,6 @@ async def cleanup_caches_periodically():
             logger.info("✅ Кеші очищено")
         except Exception as e:
             logger.error(f"❌ Помилка очищення кешів: {e}")
-# --- КІНЕЦЬ ПОКРАЩЕНЬ ---
 
 # ===== АНТИСПАМ MIDDLEWARE =====
 async def check_rate_limit(user_id: int) -> bool:
@@ -212,26 +195,21 @@ async def check_rate_limit(user_id: int) -> bool:
 
         current_time = time.time()
 
-        # Очищуємо старі повідомлення (atomic операція)
         user_message_counts[user_id] = [
             msg_time for msg_time in user_message_counts[user_id]
             if current_time - msg_time < RATE_LIMIT_WINDOW
         ]
 
-        # Перевіряємо cooldown між повідомленнями
         if user_id in last_message_times:
             if current_time - last_message_times[user_id] < MESSAGE_COOLDOWN:
                 return False
 
-        # Перевіряємо кількість повідомлень у вікні
         if len(user_message_counts[user_id]) >= RATE_LIMIT_THRESHOLD:
             blocked_users.add(user_id)
             logger.warning(f"Користувач {user_id} заблокований за спам")
-            # Блокуємо в БД асинхронно
             asyncio.create_task(db.set_user_blocked(user_id, True, 'spam'))
             return False
 
-        # Додаємо поточне повідомлення
         user_message_counts[user_id].append(current_time)
         last_message_times[user_id] = current_time
 
@@ -240,61 +218,49 @@ async def check_rate_limit(user_id: int) -> bool:
 # ===== ДОПОМІЖНІ ФУНКЦІЇ =====
 async def find_city(city_input: str) -> Optional[Dict]:
     """Пошук міста по введенню користувача"""
-    # Спочатку точний збіг
     city = await db.find_city_by_alias(city_input)
     if city:
         return city
 
-    # Потім по префіксу
     cities = await db.find_cities_by_prefix(city_input, 1)
     return cities[0] if cities else None
 
-# --- ОПТИМІЗОВАНА ПЕРЕВІРКА ПІДПИСКИ ---
 async def check_subscription_fresh(user_id: int, force_refresh: bool = False) -> bool:
     """Свіжа перевірка підписки з мінімальним кешуванням"""
     current_time = time.time()
 
-    # Якщо не примусове оновлення, перевіряємо короткий кеш (30 секунд)
     if not force_refresh and user_id in subscription_cache:
         is_subscribed, timestamp = subscription_cache[user_id]
-        if current_time - timestamp < 30:  # Короткий кеш 30 секунд
+        if current_time - timestamp < 30:
             return is_subscribed
 
-    # Перевірка через API Telegram з обробкою помилок
     try:
         member = await bot.get_chat_member(ESCADA_CHANNEL, user_id)
         is_subscribed = member.status in ['member', 'administrator', 'creator']
 
-        # Оновлюємо кеш
         subscription_cache[user_id] = (is_subscribed, current_time)
 
         logger.info(f"Підписка користувача {user_id}: {is_subscribed}")
         return is_subscribed
 
     except TelegramForbiddenError:
-        # Користувач заблокував бота або не підписаний
         subscription_cache[user_id] = (False, current_time)
         logger.info(f"Користувач {user_id} не підписаний (Forbidden)")
         return False
 
     except Exception as e:
         logger.error(f"Помилка API при перевірці підписки {user_id}: {e}")
-
-        # При помилці API повертаємо False для безпеки
-        # Це змусить користувача підписатися
         subscription_cache[user_id] = (False, current_time)
         return False
 
 async def check_subscription_cached(user_id: int) -> bool:
-    """Основна функція перевірки підписки (для сумісності)"""
+    """Основна функція перевірки підписки"""
     return await check_subscription_fresh(user_id, force_refresh=False)
-# --- КІНЕЦЬ ОПТИМІЗАЦІЇ ---
 
-# --- КЕШУВАННЯ ЗАВАНТАЖЕННЯ МІСТ ---
-# Кеш для міст з оптимізацією для БД
+# Кеш для міст
 _cities_cache = {}
 _cities_cache_time = 0
-CITIES_CACHE_TTL = 300  # 5 хвилин
+CITIES_CACHE_TTL = 300
 
 async def get_available_cities() -> List[Dict]:
     """Повертає міста з доступними каналами з кешуванням"""
@@ -302,11 +268,9 @@ async def get_available_cities() -> List[Dict]:
 
     current_time = time.time()
 
-    # Перевіряємо кеш
     if _cities_cache and (current_time - _cities_cache_time < CITIES_CACHE_TTL):
         return _cities_cache
 
-    # Оновлюємо кеш з БД
     try:
         cities = await db.get_available_cities()
         _cities_cache = cities
@@ -314,14 +278,10 @@ async def get_available_cities() -> List[Dict]:
         return cities
     except Exception as e:
         logger.error(f"Помилка завантаження міст з БД: {e}")
-        # Повертаємо старий кеш якщо є
         if _cities_cache:
             logger.warning("Використовуємо старий кеш міст")
             return _cities_cache
-        # Повертаємо пустий список як fallback
         return []
-# --- КІНЕЦЬ КЕШУВАННЯ ---
-
 
 def create_main_keyboard() -> ReplyKeyboardMarkup:
     """Головне меню"""
@@ -339,7 +299,6 @@ async def create_cities_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     cities = await get_available_cities()
 
-    # Розташовуємо міста по 2 в ряду
     for i in range(0, len(cities), 2):
         row = [
             InlineKeyboardButton(text=f"🏙 {cities[i]['name_uk']}",
@@ -381,12 +340,10 @@ def create_admin_keyboard() -> InlineKeyboardMarkup:
 async def safe_edit_message(callback: CallbackQuery,
                             text: str,
                             reply_markup: InlineKeyboardMarkup = None):
-    """Безпечне редагування повідомлення з перевіркою дублювання"""
+    """Безпечне редагування повідомлення"""
     try:
-        # Створюємо унікальний ключ для повідомлення
         message_key = f"{callback.message.chat.id}_{callback.message.message_id}"
 
-        # Перевіряємо, чи не намагаємося відправити те ж повідомлення
         if message_cache.get(message_key) == text:
             await callback.answer()
             return
@@ -411,14 +368,12 @@ async def cmd_start(message: Message, state: FSMContext):
     """Команда /start"""
     user_id = message.from_user.id
 
-    # Перевірка антиспаму
     if not await check_rate_limit(user_id):
         return
 
     await state.clear()
     user = message.from_user
 
-    # Зберігаємо користувача
     await db.save_user(user.id, user.username, user.first_name)
 
     user_name = user.first_name or "друже"
@@ -515,19 +470,18 @@ async def handle_check_subscription(message: Message):
 
 @router.message(F.text == "ℹ️ Допомога")
 async def handle_help(message: Message):
-    """Допомога - без дублювання"""
+    """Допомога"""
     user_id = message.from_user.id
 
     if not await check_rate_limit(user_id):
         return
 
-    # Перевіряємо, чи не відправляли допомогу нещодавно
     help_key = f"help_{user_id}"
     current_time = time.time()
 
     if help_key in message_cache:
         last_help_time = float(message_cache[help_key])
-        if current_time - last_help_time < 5:  # 5 секунд cooldown
+        if current_time - last_help_time < 5:
             return
 
     message_cache[help_key] = str(current_time)
@@ -591,7 +545,6 @@ async def process_city_selection(callback: CallbackQuery, state: FSMContext):
     city_code = callback.data.replace("city_", "")
     user_id = callback.from_user.id
 
-    # Отримуємо дані міста з БД
     city = await db.find_city_by_alias(city_code)
     if not city or not city['channel_url']:
         keyboard = await create_cities_keyboard()
@@ -619,9 +572,8 @@ async def process_city_selection(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 @router.callback_query(F.data == "check_subscription")
-async def check_subscription_callback(callback: CallbackQuery,
-                                      state: FSMContext):
-    """Перевірка підписки через callback з примусовим оновленням"""
+async def check_subscription_callback(callback: CallbackQuery, state: FSMContext):
+    """Перевірка підписки через callback"""
     user_id = callback.from_user.id
     data = await state.get_data()
     city_code = data.get('selected_city')
@@ -630,24 +582,20 @@ async def check_subscription_callback(callback: CallbackQuery,
         await callback.answer("❌ Помилка: місто не обрано", show_alert=True)
         return
 
-    # Примусова свіжа перевірка підписки
     await callback.answer("🔄 Перевіряю підписку...")
     is_subscribed = await check_subscription_fresh(user_id, force_refresh=True)
 
     if is_subscribed:
-        # Отримуємо дані міста
         city = await db.find_city_by_alias(city_code)
         if city:
             await send_city_channel(callback, city, user_id)
             await state.clear()
-            # Повідомляємо про успіх через нове повідомлення
             try:
                 await callback.message.answer("✅ Підписка підтверджена! Канал відкрито.")
             except:
                 pass
         else:
-            await callback.answer("❌ Помилка: місто не знайдено",
-                                  show_alert=True)
+            await callback.answer("❌ Помилка: місто не знайдено", show_alert=True)
     else:
         await callback.answer(
             "❌ Підписку не знайдено. Переконайтесь, що ви підписані на канал!",
@@ -672,7 +620,6 @@ async def admin_stats_callback(callback: CallbackQuery):
         await callback.answer("❌ Немає доступу", show_alert=True)
         return
 
-    # Логуємо дію адміна
     await db.log_admin_action(callback.from_user.id, 'view_stats')
 
     stats = await db.get_admin_stats()
@@ -681,16 +628,13 @@ async def admin_stats_callback(callback: CallbackQuery):
     stats_text = (f"📊 <b>Розширена статистика</b>\n\n"
                   f"👥 Всього користувачів: <b>{stats['total_users']}</b>\n"
                   f"✅ Активних: <b>{stats['active_users']}</b>\n"
-                  f"🚫 Заблокованих: <b>{stats['blocked_users']}</b>\n"
-                  f"📤 Відписалось: <b>{stats['total_unsubscriptions']}</b>\n\n"
+                  f"🚫 Заблокованих: <b>{stats['blocked_users']}</b>\n\n"
                   f"📈 <b>За 7 днів:</b>\n"
-                  f"🆕 Нових: <b>{stats['new_users_7d']}</b>\n"
-                  f"👋 Пішло: <b>{stats['unsubscribed_7d']}</b>\n\n"
+                  f"🆕 Нових: <b>{stats['new_users_7d']}</b>\n\n"
                   f"🏙 Доступних міст: <b>{available_cities}</b>\n"
                   f"💾 Кеш підписок: <b>{len(subscription_cache)}</b>\n"
                   f"⏰ Оновлено: {datetime.now().strftime('%H:%M:%S')}")
 
-    # Додаємо топ міст якщо є
     if stats.get('top_cities'):
         stats_text += f"\n\n🔥 <b>Топ міст (30 днів):</b>\n"
         for i, city_stat in enumerate(stats['top_cities'][:5], 1):
@@ -732,11 +676,9 @@ async def admin_users_callback(callback: CallbackQuery):
     text = (f"👥 <b>Інформація про користувачів</b>\n\n"
             f"Всього користувачів: <b>{stats['total_users']}</b>\n"
             f"Активних: <b>{stats['active_users']}</b>\n"
-            f"Заблокованих: <b>{stats['blocked_users']}</b>\n"
-            f"Відписалось: <b>{stats['total_unsubscriptions']}</b>\n\n"
+            f"Заблокованих: <b>{stats['blocked_users']}</b>\n\n"
             f"📈 <b>За останній тиждень:</b>\n"
-            f"Нових користувачів: <b>{stats['new_users_7d']}</b>\n"
-            f"Відписалось: <b>{stats['unsubscribed_7d']}</b>")
+            f"Нових користувачів: <b>{stats['new_users_7d']}</b>")
 
     await safe_edit_message(callback, text, create_admin_keyboard())
 
@@ -754,15 +696,13 @@ async def admin_cities_callback(callback: CallbackQuery):
 
     if cities:
         text += "<b>Активні міста:</b>\n"
-        for i, city in enumerate(cities[:10], 1):  # Показуємо перші 10
+        for i, city in enumerate(cities[:10], 1):
             text += f"{i}. {city['name_uk']} - {city['code']}\n"
 
         if len(cities) > 10:
             text += f"... та ще {len(cities) - 10} міст\n"
     else:
         text += "❌ Немає активних міст"
-
-    text += f"\n💡 Для додавання міст відредагуйте метод seed_cities_data() в database.py"
 
     await safe_edit_message(callback, text, create_admin_keyboard())
 
@@ -773,7 +713,6 @@ async def admin_clear_cache(callback: CallbackQuery):
         await callback.answer("❌ Немає доступу", show_alert=True)
         return
 
-    # Очищуємо всі кеші
     with _antispam_lock:
         subscription_cache.clear()
         message_cache.clear()
@@ -809,7 +748,7 @@ async def cmd_admin_check_subscription(message: Message):
 # ===== ОБРОБНИК РОЗСИЛКИ =====
 @router.message(StateFilter(BotStates.waiting_for_broadcast_message))
 async def process_broadcast(message: Message, state: FSMContext):
-    """Обробка розсилки з підтримкою фото"""
+    """Обробка розсилки"""
     if message.from_user.id != ADMIN_ID:
         return
 
@@ -820,12 +759,10 @@ async def process_broadcast(message: Message, state: FSMContext):
         await state.clear()
         return
 
-    # Визначаємо тип повідомлення
     is_photo = message.photo is not None
     text_content = message.caption if is_photo else message.text
     photo_file_id = message.photo[-1].file_id if is_photo else None
 
-    # Валідація контенту
     if not text_content and not is_photo:
         await message.answer("❌ Повідомлення не містить тексту або фото")
         return
@@ -852,17 +789,13 @@ async def process_broadcast(message: Message, state: FSMContext):
 
         except TelegramForbiddenError:
             blocked += 1
-            # Блокуємо користувача в БД
             await db.set_user_blocked(user['user_id'], True, 'blocked')
         except Exception as e:
             failed += 1
-            logger.warning(
-                f"Помилка відправки користувачу {user['user_id']}: {e}")
+            logger.warning(f"Помилка відправки користувачу {user['user_id']}: {e}")
 
-        # Антиспам затримка
         await asyncio.sleep(0.05)
 
-        # Оновлюємо статус кожні 10 відправок
         if (sent + failed + blocked) % 10 == 0:
             try:
                 await status_msg.edit_text(
@@ -889,7 +822,6 @@ async def process_broadcast(message: Message, state: FSMContext):
 # ===== ДОПОМІЖНА ФУНКЦІЯ =====
 async def send_city_channel(callback: CallbackQuery, city: Dict, user_id: int):
     """Відправка посилання на канал"""
-    # Логуємо вибір міста
     await db.log_city_selection(callback.from_user.id, city['code'], city['name_uk'])
 
     success_text = (f"✅ <b>Дякуємо за підписку!</b>\n\n"
@@ -899,8 +831,7 @@ async def send_city_channel(callback: CallbackQuery, city: Dict, user_id: int):
     builder = InlineKeyboardBuilder()
     builder.button(text=f"🔗 Канал {city['name_uk']}", url=city['channel_url'])
     builder.button(text="🏙 Обрати інше місто", callback_data="back_to_menu")
-    builder.button(text="📝 Здати квартиру",
-                   url=f"https://t.me/{ADMIN_CONTACT}")
+    builder.button(text="📝 Здати квартиру", url=f"https://t.me/{ADMIN_CONTACT}")
     builder.adjust(1)
 
     await safe_edit_message(callback, success_text, builder.as_markup())
@@ -918,7 +849,6 @@ async def handle_city_text_input(message: Message, state: FSMContext):
     city = await find_city(city_input)
 
     if city and city['channel_url']:
-        # Місто знайдено і канал доступний
         is_subscribed = await check_subscription_cached(user_id)
 
         if is_subscribed:
@@ -928,27 +858,22 @@ async def handle_city_text_input(message: Message, state: FSMContext):
                     f"📢 Ось посилання на канал:")
 
             builder = InlineKeyboardBuilder()
-            builder.button(text=f"🔗 Канал {city['name_uk']}",
-                           url=city['channel_url'])
-            builder.button(text="🔙 Назад до меню",
-                           callback_data="back_to_menu")
+            builder.button(text=f"🔗 Канал {city['name_uk']}", url=city['channel_url'])
+            builder.button(text="🔙 Назад до меню", callback_data="back_to_menu")
             builder.adjust(1)
 
             await message.answer(text, reply_markup=builder.as_markup())
             await state.clear()
         else:
-            await state.update_data(selected_city=city['code'],
-                                    city_name=city['name_uk'])
+            await state.update_data(selected_city=city['code'], city_name=city['name_uk'])
 
             subscription_text = (
                 f"🏠 <b>Знайдено: {city['name_uk']}</b>\n\n"
                 f"✨ Для доступу до каналу спочатку підпішіться:\n\n"
                 f"📢 <b>Escada News📰</b>")
 
-            await message.answer(subscription_text,
-                                 reply_markup=create_subscription_keyboard())
+            await message.answer(subscription_text, reply_markup=create_subscription_keyboard())
     elif city:
-        # Місто знайдено але канал недоступний
         keyboard = await create_cities_keyboard()
         await message.answer(
             f"⏳ <b>Місто: {city['name_uk']}</b>\n\n"
@@ -956,7 +881,6 @@ async def handle_city_text_input(message: Message, state: FSMContext):
             f"Оберіть інше місто:",
             reply_markup=keyboard)
     else:
-        # Місто не знайдено
         keyboard = await create_cities_keyboard()
         await message.answer(
             f"❌ <b>Місто '{city_input}' не знайдено</b>\n\n"
