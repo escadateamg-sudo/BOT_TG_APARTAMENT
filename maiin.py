@@ -495,7 +495,7 @@ async def handle_help(message: Message):
                  f"1️⃣ Підпишіться на {ESCADA_CHANNEL}\n"
                  f"2️⃣ Оберіть ваше місто\n"
                  f"3️⃣ Отримайте посилання на канал\n\n"
-                 f"🆘 <b>Підтримка:</b> {ADMIN_CONTACT}\n"
+                 f"🆘 <b>Підтримка:</b> @{ADMIN_CONTACT}\n"
                  f"📢 <b>Головний канал:</b> {ESCADA_CHANNEL}")
 
     await message.answer(help_text, reply_markup=create_main_keyboard())
@@ -1002,3 +1002,4 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n💥 Критична помилка: {e}")
         exit(1)
+
